@@ -1,0 +1,5 @@
+{
+  "name": "AI Recipe Inventor",
+  "description": "A web application for food bloggers to invent new recipes and generate accompanying visual content using generative AI for both text and images.",
+  "requestFramePermissions": []
+}
