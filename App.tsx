@@ -1,15 +1,16 @@
-
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Header } from './components/Header';
 import { RecipeInputForm } from './components/RecipeInputForm';
 import { SuggestionsBox } from './components/SuggestionsBox';
 import { RecipeDisplay } from './components/RecipeDisplay';
 import { ImageGallery } from './components/ImageGallery';
 import { Alert } from './components/Alert';
+import { ApiKeyInput } from './components/ApiKeyInput';
 import type { Suggestions, Recipe } from './types';
-import { generateSuggestionsAndName, generateRecipe, generateImagesAndCaption } from './services/geminiService';
+import { generateSuggestionsAndName, generateRecipe, generateImagesAndCaption, setApiKey } from './services/geminiService';
 
 const App: React.FC = () => {
+  const [userApiKey, setUserApiKey] = useState<string>(() => localStorage.getItem('geminiApiKey') || '');
   const [ingredients, setIngredients] = useState<string>('');
   const [cuisine, setCuisine] = useState<string>('');
   const [suggestions, setSuggestions] = useState<Suggestions | null>(null);
@@ -21,6 +22,21 @@ const App: React.FC = () => {
   const [isLoadingRecipe, setIsLoadingRecipe] = useState<boolean>(false);
   const [isLoadingImages, setIsLoadingImages] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setApiKey(userApiKey);
+  }, [userApiKey]);
+
+  const handleSaveKey = useCallback((key: string) => {
+    const trimmedKey = key.trim();
+    setUserApiKey(trimmedKey);
+    if (trimmedKey) {
+        localStorage.setItem('geminiApiKey', trimmedKey);
+    } else {
+        localStorage.removeItem('geminiApiKey');
+    }
+    setError(null);
+  }, []);
 
   const handleGenerateSuggestions = useCallback(async () => {
     if (!ingredients.trim() || !cuisine.trim()) {
@@ -82,6 +98,8 @@ const App: React.FC = () => {
       <Header />
       <main className="mt-8 space-y-12">
         {error && <Alert message={error} onClose={() => setError(null)} />}
+        
+        <ApiKeyInput userApiKey={userApiKey} onSave={handleSaveKey} />
         
         <RecipeInputForm
           ingredients={ingredients}

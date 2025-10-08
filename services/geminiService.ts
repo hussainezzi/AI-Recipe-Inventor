@@ -1,17 +1,48 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Suggestions, Recipe } from '../types';
 
-if (!process.env.API_KEY) {
-  throw new Error("API_KEY environment variable is not set");
+let ai: GoogleGenAI | null = null;
+
+// Initialize with environment variable as a fallback.
+// This allows the app to work out-of-the-box if the env var is set.
+// A user-provided key via setApiKey will override this.
+if (process.env.API_KEY) {
+  ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+/**
+ * Sets or updates the Gemini API client instance with a new API key.
+ * @param key The Gemini API key. If empty, the client will be cleared or reverted to the environment variable.
+ */
+export function setApiKey(key: string) {
+  if (key) {
+    ai = new GoogleGenAI({ apiKey: key });
+  } else if (process.env.API_KEY) {
+    // If the user clears the key, fall back to the env var if it exists.
+    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  } else {
+    // Otherwise, clear the client.
+    ai = null;
+  }
+}
+
+/**
+ * Gets the current AI client, throwing an error if not configured.
+ * @returns The configured GoogleGenAI instance.
+ */
+function getAiClient(): GoogleGenAI {
+  if (!ai) {
+    throw new Error("API Key not configured. Please enter your Gemini API key to proceed.");
+  }
+  return ai;
+}
+
 
 export async function generateSuggestionsAndName(ingredients: string, cuisine: string): Promise<Suggestions> {
+  const client = getAiClient();
   const prompt = `Based on the ingredients "${ingredients}" and cuisine style "${cuisine}", invent a creative and appealing recipe name. Also, suggest 3-5 alternative or complementary ingredients.`;
   
-  const response = await ai.models.generateContent({
+  const response = await client.models.generateContent({
     model: "gemini-2.5-flash",
     contents: prompt,
     config: {
@@ -44,9 +75,10 @@ export async function generateSuggestionsAndName(ingredients: string, cuisine: s
 }
 
 export async function generateRecipe(ingredients: string, cuisine: string, recipeName: string): Promise<Recipe> {
+  const client = getAiClient();
   const prompt = `Create a full recipe for a dish called "${recipeName}". It's a ${cuisine}-style dish and should primarily use these ingredients: ${ingredients}. Provide the number of servings, total prep and cook time, a list of all necessary ingredients with quantities, and step-by-step instructions.`;
 
-  const response = await ai.models.generateContent({
+  const response = await client.models.generateContent({
     model: "gemini-2.5-flash",
     contents: prompt,
     config: {
@@ -94,10 +126,12 @@ export async function generateRecipe(ingredients: string, cuisine: string, recip
 }
 
 export async function generateImagesAndCaption(recipeName: string, recipeInstructions: string): Promise<{ images: string[], caption: string }> {
+  const client = getAiClient();
+  
   // Generate images
   const imagePrompt = `Photorealistic, delicious-looking food photography of "${recipeName}". The dish is presented beautifully on a plate, with natural lighting and an inviting, warm aesthetic. It should look professionally styled for a food blog.`;
 
-  const imageResponse = await ai.models.generateImages({
+  const imageResponse = await client.models.generateImages({
     model: 'imagen-4.0-generate-001',
     prompt: imagePrompt,
     config: {
@@ -115,7 +149,7 @@ export async function generateImagesAndCaption(recipeName: string, recipeInstruc
   // Generate caption
   const captionPrompt = `Write a short, engaging, and friendly social media caption for a food blog post about a new recipe called "${recipeName}". Include a couple of relevant emojis. Keep it under 280 characters.`;
 
-  const captionResponse = await ai.models.generateContent({
+  const captionResponse = await client.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: captionPrompt,
   });
