@@ -1,16 +1,17 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Header } from './components/Header';
+import { WorkflowGuide } from './components/WorkflowGuide';
+import { ApiKeyInput } from './components/ApiKeyInput';
 import { RecipeInputForm } from './components/RecipeInputForm';
 import { SuggestionsBox } from './components/SuggestionsBox';
 import { RecipeDisplay } from './components/RecipeDisplay';
 import { ImageGallery } from './components/ImageGallery';
 import { Alert } from './components/Alert';
-import { ApiKeyInput } from './components/ApiKeyInput';
 import type { Suggestions, Recipe } from './types';
-import { generateSuggestionsAndName, generateRecipe, generateImagesAndCaption, setApiKey } from './services/geminiService';
+import { generateSuggestionsAndName, generateRecipe, generateImagesAndCaption, initializeGemini } from './services/geminiService';
 
 const App: React.FC = () => {
-  const [userApiKey, setUserApiKey] = useState<string>(() => localStorage.getItem('geminiApiKey') || '');
+  const [userApiKey, setUserApiKey] = useState<string>(() => localStorage.getItem('gemini-api-key') || '');
   const [ingredients, setIngredients] = useState<string>('');
   const [cuisine, setCuisine] = useState<string>('');
   const [suggestions, setSuggestions] = useState<Suggestions | null>(null);
@@ -22,21 +23,17 @@ const App: React.FC = () => {
   const [isLoadingRecipe, setIsLoadingRecipe] = useState<boolean>(false);
   const [isLoadingImages, setIsLoadingImages] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-
+  
   useEffect(() => {
-    setApiKey(userApiKey);
+    if (userApiKey) {
+      initializeGemini(userApiKey);
+    }
   }, [userApiKey]);
 
-  const handleSaveKey = useCallback((key: string) => {
-    const trimmedKey = key.trim();
-    setUserApiKey(trimmedKey);
-    if (trimmedKey) {
-        localStorage.setItem('geminiApiKey', trimmedKey);
-    } else {
-        localStorage.removeItem('geminiApiKey');
-    }
-    setError(null);
-  }, []);
+  const handleSaveApiKey = (key: string) => {
+    setUserApiKey(key);
+    localStorage.setItem('gemini-api-key', key);
+  };
 
   const handleGenerateSuggestions = useCallback(async () => {
     if (!ingredients.trim() || !cuisine.trim()) {
@@ -96,10 +93,12 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen container mx-auto p-4 md:p-8">
       <Header />
-      <main className="mt-8 space-y-12">
+      <WorkflowGuide />
+      <div className="my-12">
+        <ApiKeyInput userApiKey={userApiKey} onSave={handleSaveApiKey} />
+      </div>
+      <main className="space-y-12">
         {error && <Alert message={error} onClose={() => setError(null)} />}
-        
-        <ApiKeyInput userApiKey={userApiKey} onSave={handleSaveKey} />
         
         <RecipeInputForm
           ingredients={ingredients}
